@@ -828,30 +828,27 @@ function Test-TargetResource
         }
     }
 
-    if ($Size)
+    if ($partition.Size -ne $Size)
     {
-        if ($partition.Size -ne $Size)
+        # The partition size mismatches
+        if ($AllowDestructive)
         {
-            # The partition size mismatches
-            if ($AllowDestructive)
-            {
-                Write-Verbose -Message ( @(
-                        "$($MyInvocation.MyCommand): "
-                        $($script:localizedData.SizeMismatchWithAllowDestructiveMessage `
-                                -f $DriveLetter, $Partition.Size, $Size)
-                    ) -join '' )
+            Write-Verbose -Message ( @(
+                    "$($MyInvocation.MyCommand): "
+                    $($script:localizedData.SizeMismatchWithAllowDestructiveMessage `
+                            -f $DriveLetter, $Partition.Size, $Size)
+                ) -join '' )
 
-                return $false
-            }
-            else
-            {
-                Write-Verbose -Message ( @(
-                        "$($MyInvocation.MyCommand): "
-                        $($script:localizedData.SizeMismatchMessage `
-                                -f $DriveLetter, $Partition.Size, $Size)
-                    ) -join '' )
-            }
-        } # if
+            return $false
+        }
+        else
+        {
+            Write-Verbose -Message ( @(
+                    "$($MyInvocation.MyCommand): "
+                    $($script:localizedData.SizeMismatchMessage `
+                            -f $DriveLetter, $Partition.Size, $Size)
+                ) -join '' )
+        }
     } # if
 
     $blockSize = (Get-CimInstance `

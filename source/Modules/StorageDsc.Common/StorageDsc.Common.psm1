@@ -222,10 +222,47 @@ function Test-AccessPathAssignedToLocal
     return $accessPathAssigned
 } # end function Test-AccessPathLocal
 
+<#
+    .SYNOPSIS
+        Returns the maximum supported size for a partition, if possible.
+
+    .PARAMETER Partition
+        The partition object to examine.
+
+    .PARAMETER FallbackValue
+        A default size to return if the partition does not support reporting the maximum size.
+#>
+Get-PartitionMaxSupportedSize {
+    [CmdletBinding()]
+    [OutputType([UInt64])]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Microsoft.Management.Infrastructure.CimInstance]
+        $Partition
+        ,
+        [Parameter()]
+        [UInt64]
+        $FallbackValue = 0
+    )
+
+    $cimResult = $Partition | Get-PartitionSupportedSize -ErrorAction SilentlyContinue
+    $result = $cimResult.SizeMax
+
+    if ($null -eq $result)
+    {
+        Write-Warning $($script:localizedData.GetPartitionSizeUnsupportedWarning -f $Partition.PartitionNumber,$Partition.DiskNumber, $FallbackValue)
+        $result = $FallbackValue
+    } # if
+
+    return $result
+} # end function Get-PartitionMaxSupportedSize
+
 Export-ModuleMember -Function @(
     'Restart-ServiceIfExists',
     'Assert-DriveLetterValid',
     'Assert-AccessPathValid',
     'Get-DiskByIdentifier',
-    'Test-AccessPathAssignedToLocal'
+    'Test-AccessPathAssignedToLocal',
+    'Get-PartitionMaxSupportedSize'
 )
+

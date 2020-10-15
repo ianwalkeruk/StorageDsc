@@ -2992,6 +2992,62 @@ try
                 }
             }
 
+            Context 'When testing unknown partition size when the underlying CIM resource throws an exception on GetSupportedSize method' {
+                # verifiable (should be called) mocks
+                Mock `
+                    -CommandName Get-DiskByIdentifier `
+                    -ParameterFilter $script:parameterFilter_MockedDisk0Number `
+                    -MockWith { $script:mockedDisk0Gpt } `
+                    -Verifiable
+
+                Mock `
+                    -CommandName Get-Partition `
+                    -MockWith { $script:mockedPartition } `
+                    -Verifiable
+
+                # in certain circumstances, Get-PartitionSupportedSize fails to handle an exception in the underlying CIM resource
+                # and both emits that exception (causing Test-Disk) to fail and returns null values for SizeMin/Max
+                # See https://github.com/dsccommunity/StorageDsc/issues/248 for more details
+                Mock `
+                    -CommandName Get-PartitionSupportedSize `
+                    -MockWith {
+                        trap {}
+                        throw [System.Exception]::new('GetPartitionSize internal exception')
+                        return @{
+                            SizeMin = $null
+                            SizeMax = $null
+                        }
+                    } `
+                    -Verifiable
+                Mock -CommandName Get-Volume -Verifiable
+                Mock -CommandName Get-CimInstance -Verifiable
+
+                It 'Should not throw an exception' {
+                    {
+                        $script:result = Test-TargetResource `
+                            -DiskId $script:mockedDisk0Gpt.Number `
+                            -DriveLetter $script:testDriveLetter `
+                            -AllocationUnitSize 4096 `
+                            -AllowDestructive $true `
+                            -Verbose
+                    } | Should -Not -Throw
+                }
+
+                It 'Should be true' {
+                    $script:result | Should -Be $true
+                }
+
+                It 'Should call the correct mocks' {
+                    Assert-VerifiableMock
+                    Assert-MockCalled -CommandName Get-DiskByIdentifier -Exactly -Times 1 `
+                        -ParameterFilter $script:parameterFilter_MockedDisk0Number
+                    Assert-MockCalled -CommandName Get-Partition -Exactly -Times 1
+                    Assert-MockCalled -CommandName Get-PartitionSupportedSize -Exactly -Times 1
+                    Assert-MockCalled -CommandName Get-Volume -Exactly -Times 1
+                    Assert-MockCalled -CommandName Get-CimInstance -Exactly -Times 1
+                }
+            }
+
             Context 'When testing mismatched AllocationUnitSize using Disk Number' {
                 # verifiable (should be called) mocks
                 Mock `
